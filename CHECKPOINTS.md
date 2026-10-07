@@ -1,4 +1,4 @@
-# Checkpoints
+pip i# Checkpoints
 
 Bài lab làm **cá nhân**. Mỗi checkpoint ghi rõ 4 thứ: **cần làm gì**, **sản phẩm phải có khi kết thúc**, **cần hiểu gì** và **cách tự kiểm tra**. Lab coach sẽ đi vòng quanh lớp ở cuối mỗi checkpoint. Nếu bạn chưa qua được một checkpoint, hãy báo lab coach ngay, đừng im lặng làm tiếp.
 

@@ -32,7 +32,11 @@ def velo_to_cam(points_xyz: np.ndarray, calib: KittiCalib) -> np.ndarray:
       3. Trả về 3 cột đầu.
     Tự kiểm: một điểm velodyne (10, 0, 0) phải có z_cam ~ 10 (phía trước camera).
     """
-    raise NotImplementedError("TODO(CP2): cài đặt velo_to_cam")
+    pts = np.asarray(points_xyz, dtype=np.float64).reshape(-1, 3)
+    homo = np.hstack([pts, np.ones((len(pts), 1))])          # (N, 4): [x y z 1]
+    # Điểm là hàng => p_cam^T = p_velo^T @ T^T (tương đương p_cam = T @ p_velo với điểm là cột).
+    with np.errstate(invalid="ignore"):          # điểm NaN/Inf cho ra NaN, để cam_to_image loại ở bước sau
+        return (homo @ calib.T_cam_velo.T)[:, :3]
 
 
 def cam_to_image(points_cam: np.ndarray, P2: np.ndarray, image_shape: tuple[int, ...],
@@ -52,7 +56,33 @@ def cam_to_image(points_cam: np.ndarray, P2: np.ndarray, image_shape: tuple[int,
       3. Chia cho s để có (u, v). Chỉ chia với điểm có depth > min_depth.
       4. Lọc theo kích thước ảnh image_shape[:2] = (H, W).
     """
-    raise NotImplementedError("TODO(CP2): cài đặt cam_to_image")
+    pts = np.asarray(points_cam, dtype=np.float64).reshape(-1, 3)
+    n = len(pts)
+    height, width = image_shape[:2]
+
+    # 1) Bỏ NaN/Inf và điểm nằm sau (hoặc quá sát) mặt phẳng camera.
+    with np.errstate(invalid="ignore"):
+        valid = np.isfinite(pts).all(axis=1) & (pts[:, 2] > min_depth)
+
+    # 2) + 3) Chỉ chiếu và chia cho s với điểm hợp lệ, tránh chia cho 0 / số âm.
+    u = np.full(n, np.nan)
+    v = np.full(n, np.nan)
+    if valid.any():
+        homo = np.hstack([pts[valid], np.ones((int(valid.sum()), 1))])   # (M, 4)
+        proj = homo @ np.asarray(P2, dtype=np.float64).T                  # (M, 3) = [s*u, s*v, s]
+        s = proj[:, 2]
+        ok_s = s > 1e-9
+        uu = np.full(len(s), np.nan)
+        vv = np.full(len(s), np.nan)
+        uu[ok_s] = proj[ok_s, 0] / s[ok_s]
+        vv[ok_s] = proj[ok_s, 1] / s[ok_s]
+        u[valid], v[valid] = uu, vv
+
+    # 4) Lọc theo khung ảnh. So sánh với NaN luôn cho False nên điểm hỏng tự bị loại.
+    with np.errstate(invalid="ignore"):
+        mask = valid & (u >= 0) & (u < width) & (v >= 0) & (v < height)
+    uv = np.stack([u[mask], v[mask]], axis=1)
+    return uv, pts[mask, 2], mask
 
 
 def project_velo_to_image(points: np.ndarray, calib: KittiCalib, image_shape: tuple[int, ...]):
