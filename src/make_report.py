@@ -45,6 +45,12 @@ class Data:
         self.demo = pd.read_csv(res / "demo_overlay_stats.csv")
         self.sanity = pd.read_csv(res / "cp2_sanity.csv")
         self.ana = pd.read_csv(res / "analytic_shift.csv")
+        opt = lambda name: pd.read_csv(res / name) if (res / name).exists() else None  # noqa: E731
+        self.cmp = opt("compare_methods.csv")            # B1
+        self.cmp_cost = opt("compare_methods_cost.csv")
+        self.stress = opt("stress_degradation.csv")      # B2
+        self.syn = opt("synthetic_faults.csv")           # B6
+        self.syn_ok = opt("synthetic_checks_passed.csv")
 
     def row(self, ds, kind, mag):
         r = self.sm[(self.sm.dataset == ds) & (self.sm.kind == kind) & np.isclose(self.sm.magnitude, mag)]
@@ -118,6 +124,88 @@ def cross_table(D: Data) -> str:
                      fmt(d1.auc_single if d1 is not None else None, 2)])
     return md_table(["dataset", "số frame", "số điểm object", "% điểm trong ảnh", "hit rate gốc %", "tụt @ yaw 1° (điểm %)",
                      "tụt @ yaw 3°", "tụt @ tx 10 cm", "contrast gốc", "AUC @ yaw 1°"], rows)
+
+
+def clean_cell(s) -> str:
+    return str(s).replace("|", "/").replace("\n", " ")
+
+
+def bonus_b1(D: Data) -> str:
+    """B1: so sánh 2 thuật toán alignment score (Canny vs gradient) trên cùng dữ liệu, cùng metric."""
+    c = D.cmp
+    if c is None:
+        return ""
+    cc = c[c.metric.str.endswith("contrast")]
+    rows = []
+    for ds in cc.dataset.unique():
+        for kind in ("yaw", "pitch"):
+            for mag in (1.0, 2.0):
+                for meth in ("canny", "grad"):
+                    r = cc[(cc.dataset == ds) & (cc.kind == kind) & (cc.method == meth) & np.isclose(cc.magnitude, mag)]
+                    if len(r):
+                        r = r.iloc[0]
+                        rows.append([ds, f"{kind} {mag:g}°", "A: Canny" if meth == "canny" else "B: gradient", fmt(r.auc_single, 2),
+                                     fmt(r.tpr_single, 2), fmt(r.tpr_window, 2)])
+    table = md_table(["dataset", "drift", "thuật toán", "AUC 1 frame", "TPR 1 frame (FPR 5%)", f"TPR {int(cc.window.iloc[0])} frame"], rows)
+
+    rot = cc[cc.kind.isin(["yaw", "pitch", "roll"])]
+    mean_auc = rot.groupby(["dataset", "method"]).auc_single.mean().unstack()
+    verdict = []
+    for ds, r in mean_auc.iterrows():
+        w, l = ("canny", "grad") if r["canny"] >= r["grad"] else ("grad", "canny")
+        name = {"canny": "A (Canny)", "grad": "B (gradient)"}
+        verdict.append(f"{ds}: {name[w]} tốt hơn (AUC trung bình trên roll/pitch/yaw {r[w]:.2f} so với {r[l]:.2f})")
+    cost_txt = ""
+    if D.cmp_cost is not None:
+        cost_txt = "; ".join(f"{r.dataset}: dựng bản đồ ảnh A p50 {r.canny_map_p50_ms:.1f} ms, B p50 {r.grad_map_p50_ms:.1f} ms" for r in D.cmp_cost.itertuples())
+    return (f"**B1 - So sánh 2 thuật toán alignment score** (`results/compare_methods.csv`, `results/compare_methods_cost.csv`). Cùng dữ liệu, cùng lưới drift, "
+            f"cùng tập điểm LiDAR biên độ sâu, cùng cách trừ mức ngẫu nhiên và cùng ngưỡng false-alarm 5%; chỉ khác bản đồ ảnh dùng để chấm: "
+            f"A = khoảng cách tới cạnh Canny nhị phân, B = độ lớn gradient Sobel (không ngưỡng cạnh).\n\n{table}\n\n"
+            f"Kết luận theo số đo: {'; '.join(verdict)}. Chi phí: {cost_txt}. Ưu/nhược: A cho \"hố hút\" sắc quanh cạnh thật nên nhạy với lệch nhỏ, "
+            f"nhưng phụ thuộc ngưỡng Canny (50/150) và cho ít cạnh khi ảnh tối hoặc ít tương phản; B không cần ngưỡng cạnh và chạy được khi cạnh yếu, "
+            f"nhưng cộng cả texture/nhiễu (cỏ, lá cây, hạt ảnh) vào điểm nên tín hiệu loãng hơn (đây là giải thích khả dĩ, số đo là AUC/TPR ở bảng trên).\n\n"
+            f"![compare](../results/figures/compare_methods_auc.png)")
+
+
+def bonus_b2(D: Data) -> str:
+    """B2: stress test suy giảm dữ liệu LiDAR (5 loại x 3-4 mức) lên việc kiểm tra calibration."""
+    s = D.stress
+    if s is None:
+        return ""
+    rows = []
+    for r in s.itertuples():
+        rows.append([r.dataset, r.degradation, "sạch" if r.degradation == "none" else f"{r.level:g}", fmt(r.points_kept_pct, 1),
+                     fmt(r.object_points_pct, 1), fmt(r.objects_kept_pct, 1), fmt(r.hit_clean_calib_pct, 1), fmt(r.hit_yaw1_pct, 1),
+                     fmt(r.score_available_pct, 0), fmt(r.auc_yaw1, 2)])
+    table = md_table(["dataset", "suy giảm", "mức", "% điểm giữ", "% điểm trên object", "% object còn", "hit rate calib đúng %",
+                      "hit rate lệch yaw 1° %", "% frame chấm được", "AUC (đúng vs lệch 1°)"], rows)
+    insights = []
+    for ds in s.dataset.unique():
+        d = s[(s.dataset == ds) & (s.degradation != "none")]
+        base = s[(s.dataset == ds) & (s.degradation == "none")].iloc[0]
+        w = d.loc[d.object_points_pct.idxmin()]
+        a = d.loc[d.auc_yaw1.idxmin()]
+        insights.append(f"{ds}: {w.degradation} {w.level:g} làm mất nhiều điểm trên object nhất (còn {w.object_points_pct:.1f}%, {w.objects_kept_pct:.1f}% object còn đủ ≥10 điểm); "
+                        f"AUC phát hiện drift thấp nhất ở {a.degradation} {a.level:g} ({a.auc_yaw1:.2f}, so với {base.auc_yaw1:.2f} khi dữ liệu sạch)")
+    return (f"**B2 - Stress test suy giảm dữ liệu LiDAR** (`results/stress_degradation.csv`, seed cố định theo frame). 5 loại suy giảm (random dropout, Gaussian noise, "
+            f"range dropout, beam dropout, motion smear), mỗi loại 3–4 mức. Đo trên point cloud đã suy giảm: số điểm trên object, hit rate khi calibration đúng và khi lệch yaw 1°, "
+            f"và khả năng alignment contrast phân biệt hai trường hợp đó (AUC).\n\n{table}\n\n"
+            f"Nhận xét: {'; '.join(insights)}. Hit rate khi calibration đúng gần như không đổi vì quần thể điểm được xác định lại trên dữ liệu đã suy giảm; ảnh hưởng thật nằm ở việc "
+            f"còn bao nhiêu điểm/object để kiểm tra và alignment score còn phân biệt được calibration đúng/lệch hay không.\n\n![stress](../results/figures/stress_degradation.png)")
+
+
+def bonus_b6(D: Data) -> str:
+    """B6: lỗi cài sẵn trong data/synthetic."""
+    if D.syn is None:
+        return ""
+    rows = [[clean_cell(v) for v in r] for r in D.syn.itertuples(index=False)]
+    table = md_table(list(D.syn.columns), rows)
+    ok = ""
+    if D.syn_ok is not None and len(D.syn_ok):
+        ok = "\n\nĐã kiểm tra nhưng **không** phát hiện lỗi (`results/synthetic_checks_passed.csv`): " + "; ".join(
+            f"{r[0]} ({clean_cell(r[1])})" for r in D.syn_ok.itertuples(index=False)) + "."
+    return (f"**B6 - Lỗi cài sẵn trong `data/synthetic`** (`results/synthetic_faults.csv`, tự phát hiện bằng luật + ngưỡng trong `src/exp_synthetic.py`, không hard-code frame): \n\n"
+            f"{table}{ok}\n\n![synthetic](../results/figures/synthetic_faults_dashboard.png)\n![synthetic-bev](../results/figures/synthetic_fault_sector_bev.png)")
 
 
 def build(D: Data, args) -> str:
@@ -206,8 +294,9 @@ def build(D: Data, args) -> str:
         ratio_txt = (f"Giải thích khác biệt KITTI/nuScenes (B5): chỉ {n_in:.1f}% điểm nuScenes rơi vào ảnh so với {k_in:.1f}% của KITTI và LiDAR 32 beam thưa hơn "
                      f"nên mỗi object có ít điểm hơn, biên độ sâu khó đo (xem cột AUC và `align_nan_frac`); ảnh nuScenes 1600×900 với tiêu cự lớn hơn nên cùng một góc lệch cho số pixel lệch lớn hơn "
                      f"(`results/analytic_shift.csv`) nhưng box 2D của nuScenes được suy ra từ chính box 3D (không phải nhãn 2D độc lập như KITTI) nên hit rate gốc gần 100% và thang so sánh khác nhau; "
-                     f"cảnh đêm sau mưa của scene-1094 làm Canny ít cạnh tin cậy hơn.")
+                     f"tỉ lệ frame không đủ điểm biên độ sâu để chấm điểm (`align_nan_frac` trong `calib_sweep_summary.csv`) cũng khác nhau giữa hai dataset.")
 
+    bonus_md = "\n\n".join(x for x in (bonus_b1(D), bonus_b2(D), bonus_b6(D)) if x)
     lat_full = "; ".join(f"{r.dataset} p50 {r.p50_ms:.0f} ms / p95 {r.p95_ms:.0f} ms" for r in full.itertuples())
 
     out = f"""# Báo cáo Day 6: LiDAR-camera projection QA, đo độ nhạy với calibration drift
@@ -216,7 +305,7 @@ def build(D: Data, args) -> str:
 - **MSSV:** {args.mssv} (trùng với MSSV trong tên repo `{args.repo_name}`)
 - **Lớp:** {args.class_name}
 - **Link repo:** {args.repo_url}
-- **Topic:** A — Kiểm tra calibration LiDAR-camera bằng projection (đạt mức Basic, Good, Advanced; thêm bonus B3, B4, B5)
+- **Topic:** A — Kiểm tra calibration LiDAR-camera bằng projection (đạt mức Basic, Good, Advanced; thêm bonus B1, B2, B3, B4, B5, B6)
 - **Dataset:** data/kitti_mini, data/nuscenes_mini_subset, data/synthetic (chỉ để kiểm tra tay CP2)
 - **Các frame đã dùng:** sweep trên {frame_txt}; demo overlay: {demo_txt}
 
@@ -240,7 +329,7 @@ def build(D: Data, args) -> str:
 
 ![drift](../results/figures/drift_gallery_kitti_000011.png)
 
-{chr(10).join(sections_sweep)}
+{(chr(10) * 2).join(sections_sweep)}
 
 Hit rate theo từng trục (rotation, độ) và (translation, cm) cho cả hai dataset:
 
@@ -268,11 +357,13 @@ Về khoảng cách: ở KITTI yaw 1°, {cmp_txt} (gần {near0:.1f}% → {near1
 
 {lat_table}
 
+{bonus_md}
+
 ## 3. Failure case
 
 Ba failure case được chọn tự động theo số đo (`src/exp_failure.py`, tóm tắt ở `results/failure_cases.csv`), thuộc ba lớp debug khác nhau.
 
-{chr(10).join(fail_md)}
+{(chr(10) * 2).join(fail_md)}
 
 ## 4. Khuyến nghị nếu triển khai thật
 
@@ -288,13 +379,16 @@ Từ repo sạch, chỉ cần CPU (đã chạy trên Kaggle). Kết quả xác �
 pip install -r requirements.txt
 python tools/verify_data.py --data-root data/kitti_mini
 python tools/verify_data.py --data-root data/nuscenes_mini_subset
-python -m src.run_all --class-name "{args.class_name}"        # chạy tất cả: demo, sweep, detect, failure, latency, check tái lập, sinh REPORT.md
+python -m src.run_all --class-name "{args.class_name}"        # chạy tất cả: demo, sweep, detect, failure, latency, B1, B2, B6, check tái lập, sinh REPORT.md
 # hoặc từng bước:
 python -m src.exp_demo
 python -m src.exp_sweep
 python -m src.exp_detect
 python -m src.exp_failure
 python -m src.exp_latency
+python -m src.exp_compare      # B1
+python -m src.exp_stress       # B2
+python -m src.exp_synthetic    # B6
 python -m src.make_report --class-name "{args.class_name}"
 python tools/check_submission.py
 ```
@@ -305,7 +399,7 @@ Công cụ dùng lại được (B4): mỗi script trong `src/` có `--help`; `p
 
 | Công cụ | Dùng cho việc gì | Bạn đã kiểm chứng thế nào |
 |---|---|---|
-| Claude Code (Claude Sonnet 5.5) | Viết 2 hàm `TODO(CP2)` trong `starter/projection.py`; viết toàn bộ code trong `src/` (đo hit rate/precision/FOV, alignment score, sweep, phát hiện drift, failure case, latency) và `src/make_report.py` sinh báo cáo từ CSV | Kiểm tra tay CP2 tự động (`results/cp2_sanity.csv`: điểm (10,0,0) → z≈9,73, pixel≈(614,175), NaN/Inf, điểm sau xe); xem trực tiếp ảnh overlay `results/figures/demo_*.png` khớp xe/người/cột và không có điểm trên bầu trời; chạy lại sweep hai lần so sánh checksum (`results/determinism_check.txt`); mọi con số trong báo cáo được sinh từ CSV chứ không gõ tay |
+| Claude Code (Claude Sonnet 5.5) | Viết 2 hàm `TODO(CP2)` trong `starter/projection.py`; viết toàn bộ code trong `src/` (đo hit rate/precision/FOV, alignment score, sweep, phát hiện drift, failure case, latency) `src/exp_compare.py` (B1), `src/exp_stress.py` (B2), `src/exp_synthetic.py` (B6) và `src/make_report.py` sinh báo cáo từ CSV | Kiểm tra tay CP2 tự động (`results/cp2_sanity.csv`: điểm (10,0,0) → z≈9,73, pixel≈(614,175), NaN/Inf, điểm sau xe); xem trực tiếp ảnh overlay `results/figures/demo_*.png` khớp xe/người/cột và không có điểm trên bầu trời; chạy lại sweep hai lần so sánh checksum (`results/determinism_check.txt`); mọi con số trong báo cáo được sinh từ CSV chứ không gõ tay |
 """
     return out
 

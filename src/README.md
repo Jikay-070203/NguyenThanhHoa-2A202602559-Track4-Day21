@@ -10,6 +10,9 @@ Toàn bộ code tự viết cho bài lab (ngoài 2 hàm `TODO(CP2)` trong `start
 | `exp_detect.py` | Advanced: ngưỡng phát hiện drift của alignment score (TPR, AUC, cửa sổ K frame) | `results/alignment_detection.csv`, `alignment_*.png` |
 | `exp_failure.py` | CP4: 3 failure case chọn tự động (Geometry, Time, Metric) | `results/figures/fail_*.png`, `failure_cases.csv`, `time_sync_nuscenes.csv` |
 | `exp_latency.py` | B3: latency p50/p95 (bỏ warm-up, 30 lần đo) | `results/latency_projection.csv` |
+| `exp_compare.py` | **B1**: so sánh 2 thuật toán alignment score (Canny vs gradient) trên cùng dữ liệu/lưới drift/metric | `results/compare_methods*.csv`, `compare_methods_auc.png` |
+| `exp_stress.py` | **B2**: stress test 5 loại suy giảm LiDAR x 3–4 mức, đo ảnh hưởng lên kiểm tra calibration | `results/stress_degradation*.csv`, `stress_degradation.png` |
+| `exp_synthetic.py` | **B6**: tự động tìm lỗi cài sẵn trong `data/synthetic` (NaN, mất cung quét, hở timestamp) | `results/synthetic_faults.csv` (bảng 3 cột), `synthetic_*.csv`, `synthetic_*.png` |
 | `make_report.py` | Sinh `report/REPORT.md` từ CSV (mọi số lấy từ CSV) | `report/REPORT.md` |
 | `run_all.py` | Chạy tất cả theo thứ tự + kiểm tra tái lập (sha256) | `results/determinism_check.txt` |
 | `kaggle_run.ipynb` | Notebook chạy trên Kaggle | |

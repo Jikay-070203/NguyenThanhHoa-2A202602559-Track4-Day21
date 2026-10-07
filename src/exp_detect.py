@@ -38,11 +38,11 @@ def auc_healthy_higher(healthy: np.ndarray, drift: np.ndarray) -> float:
     return float((healthy[:, None] > drift[None, :]).mean() + 0.5 * (healthy[:, None] == drift[None, :]).mean())
 
 
-def detection_table(df: pd.DataFrame, window: int, n_boot: int, seed: int) -> pd.DataFrame:
+def detection_table(df: pd.DataFrame, window: int, n_boot: int, seed: int, metrics=METRICS) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
     rows = []
     for ds, d in df.groupby("dataset", sort=False):
-        for metric in METRICS:
+        for metric in metrics:
             healthy = d[d.kind == "baseline"][metric].dropna().to_numpy()
             if len(healthy) < 5:
                 continue

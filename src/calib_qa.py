@@ -116,6 +116,15 @@ class FrameCtx:
     null_px: int            # độ dịch (pixel) dùng để ước lượng mức điểm số "ngẫu nhiên"
 
 
+def edge_weight_map(image: np.ndarray, focal_px: float):
+    """Thuật toán A (Canny): (edge_map, weight_map) với weight = exp(-khoảng_cách_tới_cạnh_Canny / sigma)."""
+    gray = cv2.GaussianBlur(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), (5, 5), 0)
+    edges = cv2.Canny(gray, CANNY_LO, CANNY_HI)
+    dist = cv2.distanceTransform((edges == 0).astype(np.uint8), cv2.DIST_L2, 3)
+    sigma = max(2.0, focal_px * np.deg2rad(SIGMA_DEG))     # góc nhìn -> pixel: KITTI f~721 px, nuScenes f~1266 px
+    return edges, np.exp(-dist / sigma).astype(np.float32)
+
+
 def build_ctx(fr: dict) -> FrameCtx:
     """Chuẩn bị mọi thứ không phụ thuộc drift cho 1 frame (gọi 1 lần, đánh giá nhiều calibration)."""
     pts_all = fr["points"]
@@ -135,12 +144,8 @@ def build_ctx(fr: dict) -> FrameCtx:
         if len(idx_pop) >= MIN_POP_POINTS:
             objects.append(ObjCtx(obj, band_of(float(obj.location[2])), idx_box, idx_pop))
 
-    gray = cv2.GaussianBlur(cv2.cvtColor(fr["image"], cv2.COLOR_BGR2GRAY), (5, 5), 0)
-    edges = cv2.Canny(gray, CANNY_LO, CANNY_HI)
-    dist = cv2.distanceTransform((edges == 0).astype(np.uint8), cv2.DIST_L2, 3)
     focal = float(calib.P2[0, 0])
-    sigma = max(2.0, focal * np.deg2rad(SIGMA_DEG))        # góc nhìn -> pixel: KITTI f~721 px, nuScenes f~1266 px
-    weight = np.exp(-dist / sigma).astype(np.float32)
+    edges, weight = edge_weight_map(fr["image"], focal)
     # Cửa sổ láng giềng ~1.2 lần khoảng cách trung bình giữa 2 điểm LiDAR trên ảnh (KITTI 64 beam ~5 px, nuScenes
     # 32 beam ~21 px), luôn lẻ. Cố định theo calibration đúng, không đổi khi drift => so sánh công bằng giữa các mức.
     spacing = np.sqrt(shape[0] * shape[1] / max(int(mask_true.sum()), 1))

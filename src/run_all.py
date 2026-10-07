@@ -1,4 +1,4 @@
-"""Chạy toàn bộ Topic A một lệnh: demo -> sweep -> detect -> failure -> latency -> kiểm tra tái lập -> REPORT.md.
+"""Chạy toàn bộ Topic A một lệnh: demo -> sweep -> detect -> failure -> latency -> B1/B2/B6 -> kiểm tra tái lập -> REPORT.md.
 
     python -m src.run_all --class-name "AI20K-xx"
     python -m src.run_all --max-frames 8 --max-nusc-frames 8 --skip-latency     # chạy thử nhanh
@@ -13,7 +13,8 @@ import tempfile
 import time
 from pathlib import Path
 
-from src import exp_demo, exp_detect, exp_failure, exp_latency, exp_sweep, make_report
+from src import (exp_compare, exp_demo, exp_detect, exp_failure, exp_latency, exp_stress, exp_sweep, exp_synthetic,
+                 make_report)
 
 
 def determinism_check(out_dir: Path) -> str:
@@ -41,6 +42,7 @@ def main(argv=None) -> None:
     ap.add_argument("--max-frames", type=int, default=0, help="gioi han so frame moi dataset cho sweep (0 = tat ca)")
     ap.add_argument("--max-nusc-frames", type=int, default=0, help="gioi han so frame nuScenes cho case Time (0 = tat ca)")
     ap.add_argument("--skip-latency", action="store_true")
+    ap.add_argument("--skip-bonus", action="store_true", help="bo qua B1 (exp_compare), B2 (exp_stress), B6 (exp_synthetic)")
     ap.add_argument("--skip-determinism", action="store_true")
     ap.add_argument("--skip-report", action="store_true")
     args = ap.parse_args(argv)
@@ -54,16 +56,21 @@ def main(argv=None) -> None:
         print(f"[{name}] xong sau {time.perf_counter() - t0:.0f}s", flush=True)
 
     od = ["--out-dir", str(out)]
-    step("1/7 demo + kiem tra tay CP2", lambda: exp_demo.main(od))
-    step("2/7 sweep calibration drift", lambda: exp_sweep.main([*od, "--max-frames", str(args.max_frames)]))
-    step("3/7 nguong phat hien (alignment score)", lambda: exp_detect.main(od))
-    step("4/7 failure case", lambda: exp_failure.main([*od, "--max-nusc-frames", str(args.max_nusc_frames)]))
+    mf = ["--max-frames", str(args.max_frames)]
+    step("1/10 demo + kiem tra tay CP2", lambda: exp_demo.main(od))
+    step("2/10 sweep calibration drift", lambda: exp_sweep.main([*od, *mf]))
+    step("3/10 nguong phat hien (alignment score)", lambda: exp_detect.main(od))
+    step("4/10 failure case", lambda: exp_failure.main([*od, "--max-nusc-frames", str(args.max_nusc_frames)]))
     if not args.skip_latency:
-        step("5/7 latency p50/p95", lambda: exp_latency.main(od))
+        step("5/10 latency p50/p95", lambda: exp_latency.main(od))
+    if not args.skip_bonus:
+        step("6/10 B1: so sanh 2 thuat toan alignment score", lambda: exp_compare.main([*od, *mf]))
+        step("7/10 B2: stress test suy giam du lieu", lambda: exp_stress.main([*od, *mf]))
+        step("8/10 B6: loi cai san trong data/synthetic", lambda: exp_synthetic.main(od))
     if not args.skip_determinism:
-        step("6/7 kiem tra tai lap", lambda: determinism_check(out))
+        step("9/10 kiem tra tai lap", lambda: determinism_check(out))
     if not args.skip_report:
-        step("7/7 sinh REPORT.md", lambda: make_report.main(
+        step("10/10 sinh REPORT.md", lambda: make_report.main(
             ["--results-dir", str(out), "--out", args.report_out, "--class-name", args.class_name,
              "--student-name", args.student_name]))
     print("\nXong. Chay `python tools/check_submission.py` de kiem tra hinh thuc.")
