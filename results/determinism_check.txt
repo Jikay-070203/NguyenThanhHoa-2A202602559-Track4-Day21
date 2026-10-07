@@ -1,0 +1,1 @@
+PASS: chạy lại `exp_sweep --quick` 2 lần cho cùng checksum (sha256 0d19bbeae44e / 0d19bbeae44e)

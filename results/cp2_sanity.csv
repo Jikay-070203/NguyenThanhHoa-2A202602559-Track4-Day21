@@ -1,0 +1,5 @@
+check,expected,got,pass
+"z_cam cua diem (10,0,0)",~9.73,9.727,True
+"pixel (u,v) cua diem (10,0,0)","~(614,175)","(614.0,175.0)",True
+"diem (-10,0,0) o phia sau xe bi loai",mask=False,mask=False,True
+"NaN/Inf khong lam crash, chi diem hop le con lai","mask=[F,F,T]","mask=[False, False, True]",True

@@ -1,0 +1,4 @@
+case,file,layer,dataset,frame_id,object_type,object_depth_m,value_before_pct,value_after_pct,note
+fail_01_geometry_yaw,fail_01_yaw_1deg_pedestrian_000011.png,Geometry,kitti,000011,Pedestrian,34.1,100.0,7.5,"yaw 1 deg, 40 diem LiDAR cua object"
+fail_02_time_sync,fail_02_time_sync_noego_scene-0103_001.png,Time,nuscenes,scene-0103_001,Pedestrian,12.1,100.0,85.7,"dt LiDAR-camera -35.6 ms, shift median 9.3 px, p95 36.1 px"
+fail_03_metric_blind,fail_03_alignment_blind_nuscenes_scene-0103_006_roll3deg.png,Metric,nuscenes,scene-0103_006,,,100.0,0.0,"drift that nhung alignment score khong bao dong; roll -3 deg, contrast 0.101 -> 0.090, tau -0.016, n_edge 65"
