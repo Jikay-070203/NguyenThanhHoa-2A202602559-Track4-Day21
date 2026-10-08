@@ -1,0 +1,3 @@
+dataset,canny_map_p50_ms,canny_map_p95_ms,grad_map_p50_ms,grad_map_p95_ms,n_frames
+kitti,18.022,20.925,22.588,26.510,20
+nuscenes,41.780,48.413,50.710,58.057,80

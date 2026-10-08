@@ -4,7 +4,7 @@
 - **MSSV:** 2A202602559
 - **Lớp:** AI20K-2A202602559
 - **Link repo:** https://github.com/Jikay-070203/NguyenThanhHoa-2A202602559-Track4-Day21
-- **Topic:** A — Kiểm tra calibration LiDAR-camera bằng projection 
+- **Topic:** A — Kiểm tra calibration LiDAR-camera bằng projection (đạt mức Basic, Good, Advanced; thêm bonus B1, B2, B3, B4, B5, B6)
 - **Dataset:** data/kitti_mini, data/nuscenes_mini_subset, data/synthetic (chỉ để kiểm tra tay CP2)
 - **Các frame đã dùng:** sweep trên kitti: 20 frame (000001 … 000061); nuscenes: 80 frame (scene-0103_000 … scene-1094_039); demo overlay: 000019, 000011, 000004, 000000, scene-0103_010, scene-1094_010
 
@@ -39,6 +39,7 @@ Trên KITTI mini, calibration lệch yaw 1° làm hit rate (điểm LiDAR của 
 | 1.5° | 15.74 | 86.7 | 93.3 | 79.9 | 56.8 | 34.8 | 41.9 | 0.049 | 0.57 | 0.93 |
 | 2° | 15.74 | 81.3 | 89.4 | 73.2 | 45.0 | 14.1 | 39.2 | 0.036 | 0.70 | 0.98 |
 | 3° | 15.74 | 71.4 | 81.5 | 60.9 | 24.5 | 0.0 | 34.3 | 0.024 | 0.72 | 1.00 |
+
 **nuscenes - quét yaw** (`results/calib_sweep_summary.csv`, `results/alignment_detection.csv`)
 
 | yaw | % điểm trong ảnh | hit rate % | hit 0-15m % | hit 15-30m % | hit 30-50m % | hit >50m % | precision % | contrast | TPR 1 frame | TPR 5 frame |
@@ -88,20 +89,101 @@ Về khoảng cách: ở KITTI yaw 1°, đúng như kỳ vọng hình học, v�
 | kitti | 20 | 24803 | 15.74 | 99.2 | 6.7 | 27.8 | 0.0 | 0.112 | 0.77 |
 | nuscenes | 80 | 13786 | 8.73 | 99.5 | 3.2 | 21.2 | 0.4 | 0.040 | 0.66 |
 
-Giải thích khác biệt KITTI/nuScenes (B5): chỉ 8.7% điểm nuScenes rơi vào ảnh so với 15.7% của KITTI và LiDAR 32 beam thưa hơn nên mỗi object có ít điểm hơn, biên độ sâu khó đo (xem cột AUC và `align_nan_frac`); ảnh nuScenes 1600×900 với tiêu cự lớn hơn nên cùng một góc lệch cho số pixel lệch lớn hơn (`results/analytic_shift.csv`) nhưng box 2D của nuScenes được suy ra từ chính box 3D (không phải nhãn 2D độc lập như KITTI) nên hit rate gốc gần 100% và thang so sánh khác nhau; cảnh đêm sau mưa của scene-1094 làm Canny ít cạnh tin cậy hơn.
+Giải thích khác biệt KITTI/nuScenes (B5): chỉ 8.7% điểm nuScenes rơi vào ảnh so với 15.7% của KITTI và LiDAR 32 beam thưa hơn nên mỗi object có ít điểm hơn, biên độ sâu khó đo (xem cột AUC và `align_nan_frac`); ảnh nuScenes 1600×900 với tiêu cự lớn hơn nên cùng một góc lệch cho số pixel lệch lớn hơn (`results/analytic_shift.csv`) nhưng box 2D của nuScenes được suy ra từ chính box 3D (không phải nhãn 2D độc lập như KITTI) nên hit rate gốc gần 100% và thang so sánh khác nhau; tỉ lệ frame không đủ điểm biên độ sâu để chấm điểm (`align_nan_frac` trong `calib_sweep_summary.csv`) cũng khác nhau giữa hai dataset.
 
 **Latency (B3)** (`results/latency_projection.csv`), mỗi giai đoạn bỏ warm-up rồi đo 30 lần, phần cứng: Intel(R) Xeon(R) CPU @ 2.20GHz, 4 nhân, Linux-6.18.48+-x86_64-with-glibc2.39, Python 3.13.15, numpy 2.1.3, OpenCV 4.14.0; chỉ chạy CPU.
 
 | dataset | giai đoạn | số điểm | p50 (ms) | p95 (ms) | số lần đo | warm-up bỏ |
 |---|---|---|---|---|---|---|
-| kitti | project (velo_to_cam + cam_to_image) | 108,004 | 22.4 | 25.9 | 30 | 3 |
-| kitti | overlay (ve diem len anh) | 108,004 | 102.3 | 119.3 | 30 | 3 |
-| kitti | alignment score (bien do sau + so canh) | 108,004 | 6.4 | 7.9 | 30 | 3 |
-| kitti | full check (project + hit/precision + alignment) | 108,004 | 36.9 | 44.7 | 30 | 3 |
-| nuscenes | project (velo_to_cam + cam_to_image) | 34,720 | 4.8 | 6.5 | 30 | 3 |
-| nuscenes | overlay (ve diem len anh) | 34,720 | 16.6 | 23.1 | 30 | 3 |
-| nuscenes | alignment score (bien do sau + so canh) | 34,720 | 5.9 | 8.6 | 30 | 3 |
-| nuscenes | full check (project + hit/precision + alignment) | 34,720 | 15.8 | 18.9 | 30 | 3 |
+| kitti | project (velo_to_cam + cam_to_image) | 108,004 | 19.9 | 20.7 | 30 | 3 |
+| kitti | overlay (ve diem len anh) | 108,004 | 90.5 | 94.0 | 30 | 3 |
+| kitti | alignment score (bien do sau + so canh) | 108,004 | 3.5 | 3.8 | 30 | 3 |
+| kitti | full check (project + hit/precision + alignment) | 108,004 | 28.5 | 29.1 | 30 | 3 |
+| nuscenes | project (velo_to_cam + cam_to_image) | 34,720 | 4.0 | 4.3 | 30 | 3 |
+| nuscenes | overlay (ve diem len anh) | 34,720 | 16.4 | 17.1 | 30 | 3 |
+| nuscenes | alignment score (bien do sau + so canh) | 34,720 | 5.6 | 6.5 | 30 | 3 |
+| nuscenes | full check (project + hit/precision + alignment) | 34,720 | 11.0 | 11.9 | 30 | 3 |
+
+**B1 - So sánh 2 thuật toán alignment score** (`results/compare_methods.csv`, `results/compare_methods_cost.csv`). Cùng dữ liệu, cùng lưới drift, cùng tập điểm LiDAR biên độ sâu, cùng cách trừ mức ngẫu nhiên và cùng ngưỡng false-alarm 5%; chỉ khác bản đồ ảnh dùng để chấm: A = khoảng cách tới cạnh Canny nhị phân, B = độ lớn gradient Sobel (không ngưỡng cạnh).
+
+| dataset | drift | thuật toán | AUC 1 frame | TPR 1 frame (FPR 5%) | TPR 5 frame |
+|---|---|---|---|---|---|
+| kitti | yaw 1° | A: Canny | 0.77 | 0.40 | 0.79 |
+| kitti | yaw 1° | B: gradient | 0.73 | 0.23 | 0.62 |
+| kitti | yaw 2° | A: Canny | 0.88 | 0.70 | 0.97 |
+| kitti | yaw 2° | B: gradient | 0.82 | 0.42 | 0.89 |
+| kitti | pitch 1° | A: Canny | 0.89 | 0.65 | 0.99 |
+| kitti | pitch 1° | B: gradient | 0.79 | 0.40 | 0.81 |
+| kitti | pitch 2° | A: Canny | 0.95 | 0.80 | 1.00 |
+| kitti | pitch 2° | B: gradient | 0.90 | 0.60 | 1.00 |
+| nuscenes | yaw 1° | A: Canny | 0.66 | 0.19 | 0.34 |
+| nuscenes | yaw 1° | B: gradient | 0.69 | 0.19 | 0.51 |
+| nuscenes | yaw 2° | A: Canny | 0.73 | 0.21 | 0.57 |
+| nuscenes | yaw 2° | B: gradient | 0.77 | 0.26 | 0.76 |
+| nuscenes | pitch 1° | A: Canny | 0.55 | 0.05 | 0.07 |
+| nuscenes | pitch 1° | B: gradient | 0.54 | 0.07 | 0.08 |
+| nuscenes | pitch 2° | A: Canny | 0.58 | 0.11 | 0.13 |
+| nuscenes | pitch 2° | B: gradient | 0.58 | 0.09 | 0.14 |
+
+Kết luận theo số đo: kitti: A (Canny) tốt hơn (AUC trung bình trên roll/pitch/yaw 0.82 so với 0.76); nuscenes: B (gradient) tốt hơn (AUC trung bình trên roll/pitch/yaw 0.64 so với 0.63). Chi phí: kitti: dựng bản đồ ảnh A p50 18.0 ms, B p50 22.6 ms; nuscenes: dựng bản đồ ảnh A p50 41.8 ms, B p50 50.7 ms. Ưu/nhược: A cho "hố hút" sắc quanh cạnh thật nên nhạy với lệch nhỏ, nhưng phụ thuộc ngưỡng Canny (50/150) và cho ít cạnh khi ảnh tối hoặc ít tương phản; B không cần ngưỡng cạnh và chạy được khi cạnh yếu, nhưng cộng cả texture/nhiễu (cỏ, lá cây, hạt ảnh) vào điểm nên tín hiệu loãng hơn (đây là giải thích khả dĩ, số đo là AUC/TPR ở bảng trên).
+
+![compare](../results/figures/compare_methods_auc.png)
+
+**B2 - Stress test suy giảm dữ liệu LiDAR** (`results/stress_degradation.csv`, seed cố định theo frame). 5 loại suy giảm (random dropout, Gaussian noise, range dropout, beam dropout, motion smear), mỗi loại 3–4 mức. Đo trên point cloud đã suy giảm: số điểm trên object, hit rate khi calibration đúng và khi lệch yaw 1°, và khả năng alignment contrast phân biệt hai trường hợp đó (AUC).
+
+| dataset | suy giảm | mức | % điểm giữ | % điểm trên object | % object còn | hit rate calib đúng % | hit rate lệch yaw 1° % | % frame chấm được | AUC (đúng vs lệch 1°) |
+|---|---|---|---|---|---|---|---|---|---|
+| kitti | none | sạch | 100.0 | 100.0 | 100.0 | 99.2 | 92.4 | 100 | 0.77 |
+| kitti | random_dropout | 0.9 | 90.0 | 90.2 | 100.0 | 99.2 | 92.5 | 100 | 0.75 |
+| kitti | random_dropout | 0.7 | 70.0 | 70.2 | 100.0 | 99.2 | 92.4 | 100 | 0.75 |
+| kitti | random_dropout | 0.5 | 50.0 | 49.6 | 94.3 | 99.1 | 92.5 | 100 | 0.74 |
+| kitti | random_dropout | 0.3 | 30.0 | 29.6 | 85.1 | 99.1 | 92.8 | 100 | 0.74 |
+| kitti | gaussian_noise | 0.02 | 100.0 | 100.0 | 100.0 | 99.2 | 92.5 | 100 | 0.77 |
+| kitti | gaussian_noise | 0.05 | 100.0 | 99.5 | 100.0 | 99.0 | 92.3 | 100 | 0.73 |
+| kitti | gaussian_noise | 0.1 | 100.0 | 96.7 | 101.1 | 98.4 | 91.9 | 100 | 0.63 |
+| kitti | range_dropout | 50 | 98.0 | 98.8 | 90.8 | 99.2 | 92.8 | 100 | 0.76 |
+| kitti | range_dropout | 30 | 93.0 | 93.6 | 69.0 | 99.2 | 93.6 | 100 | 0.73 |
+| kitti | range_dropout | 20 | 84.7 | 69.0 | 36.8 | 99.1 | 95.4 | 100 | 0.75 |
+| kitti | beam_dropout | 2 | 48.0 | 49.3 | 93.1 | 99.0 | 92.3 | 100 | 0.75 |
+| kitti | beam_dropout | 3 | 36.8 | 36.9 | 87.4 | 98.9 | 92.8 | 100 | 0.77 |
+| kitti | beam_dropout | 4 | 24.0 | 26.0 | 79.3 | 98.8 | 92.7 | 100 | 0.76 |
+| kitti | motion_smear | 10 | 100.0 | 47.7 | 78.2 | 98.6 | 93.1 | 100 | 0.56 |
+| kitti | motion_smear | 20 | 100.0 | 26.0 | 49.4 | 99.7 | 97.3 | 100 | 0.49 |
+| kitti | motion_smear | 30 | 100.0 | 18.8 | 37.9 | 99.7 | 96.5 | 100 | 0.46 |
+| nuscenes | none | sạch | 100.0 | 100.0 | 100.0 | 99.2 | 96.4 | 100 | 0.65 |
+| nuscenes | random_dropout | 0.9 | 90.0 | 89.0 | 93.6 | 99.2 | 96.5 | 100 | 0.63 |
+| nuscenes | random_dropout | 0.7 | 70.0 | 68.0 | 82.4 | 99.3 | 96.7 | 98 | 0.60 |
+| nuscenes | random_dropout | 0.5 | 49.9 | 46.9 | 70.4 | 99.2 | 96.9 | 95 | 0.54 |
+| nuscenes | random_dropout | 0.3 | 29.9 | 24.9 | 44.0 | 99.1 | 96.9 | 60 | 0.54 |
+| nuscenes | gaussian_noise | 0.02 | 100.0 | 99.9 | 99.2 | 99.4 | 96.6 | 100 | 0.62 |
+| nuscenes | gaussian_noise | 0.05 | 100.0 | 99.7 | 99.2 | 99.5 | 96.6 | 100 | 0.58 |
+| nuscenes | gaussian_noise | 0.1 | 100.0 | 98.4 | 100.0 | 99.6 | 96.2 | 100 | 0.53 |
+| nuscenes | range_dropout | 50 | 97.9 | 100.0 | 100.0 | 99.2 | 96.4 | 100 | 0.61 |
+| nuscenes | range_dropout | 30 | 91.8 | 95.3 | 89.6 | 99.2 | 96.6 | 88 | 0.60 |
+| nuscenes | range_dropout | 20 | 84.7 | 73.1 | 49.6 | 98.9 | 97.0 | 30 | 0.54 |
+| nuscenes | beam_dropout | 2 | 52.4 | 48.4 | 70.4 | 98.6 | 96.1 | 100 | 0.57 |
+| nuscenes | beam_dropout | 3 | 36.8 | 30.8 | 54.4 | 99.8 | 97.4 | 90 | 0.57 |
+| nuscenes | beam_dropout | 4 | 28.2 | 20.2 | 38.4 | 99.7 | 97.3 | 50 | 0.57 |
+| nuscenes | motion_smear | 10 | 100.0 | 46.7 | 68.8 | 98.9 | 96.5 | 100 | 0.59 |
+| nuscenes | motion_smear | 20 | 100.0 | 22.0 | 45.6 | 99.5 | 96.6 | 100 | 0.54 |
+| nuscenes | motion_smear | 30 | 100.0 | 15.4 | 30.4 | 99.6 | 96.4 | 100 | 0.52 |
+
+Nhận xét: kitti: motion_smear 30 làm mất nhiều điểm trên object nhất (còn 18.8%, 37.9% object còn đủ ≥10 điểm); AUC phát hiện drift thấp nhất ở motion_smear 30 (0.46, so với 0.77 khi dữ liệu sạch); nuscenes: motion_smear 30 làm mất nhiều điểm trên object nhất (còn 15.4%, 30.4% object còn đủ ≥10 điểm); AUC phát hiện drift thấp nhất ở motion_smear 30 (0.52, so với 0.65 khi dữ liệu sạch). Hit rate khi calibration đúng gần như không đổi vì quần thể điểm được xác định lại trên dữ liệu đã suy giảm; ảnh hưởng thật nằm ở việc còn bao nhiêu điểm/object để kiểm tra và alignment score còn phân biệt được calibration đúng/lệch hay không.
+
+![stress](../results/figures/stress_degradation.png)
+
+**B6 - Lỗi cài sẵn trong `data/synthetic`** (`results/synthetic_faults.csv`, tự phát hiện bằng luật + ngưỡng trong `src/exp_synthetic.py`, không hard-code frame): 
+
+| lỗi | frame bị lỗi | cách phát hiện |
+|---|---|---|
+| Điểm NaN trong point cloud (tọa độ bị hỏng) | 000000, 000001, 000002, 000003, 000004 | Đếm hàng không hữu hạn (np.isfinite) từng frame: 22-23 điểm/frame (~0.10%), hỏng ở cột x/y/z; nếu không lọc, projection và thống kê sẽ nhiễm NaN |
+| Mất một cung quét LiDAR (sector dropout, mất điểm theo azimuth) | 000003 | Histogram azimuth 5 độ so với median các frame khác, bin mật độ < 50%: 000003: az -40..-5 deg (mật độ chỉ còn 22-34% so với các frame khác). Bằng chứng phụ (000003: n_points = 93% median). Cung này nằm trong FOV camera |
+| Khoảng hở thời gian giữa 2 frame (timestamp nhảy cóc) | 000003 | Đọc timestamps.txt, tính dt giữa frame liền kề: 000003: dt = 0.20 s (danh định 0.10 s), ngưỡng 1.5x dt trung vị. Đối chiếu: nhãn GT của Pedestrian#0 (chuyển động đều 20.0 m/s ở các khoảng không hở) chỉ dịch 2.0 m ở khoảng 000002->000003, tức chỉ ~0.10 s trôi qua trong khi timestamp cách nhau 0.20 s: timestamp nhảy cóc (hoặc nhãn/frame không khớp thời gian) |
+
+Đã kiểm tra nhưng **không** phát hiện lỗi (`results/synthetic_checks_passed.csv`): R5 calib / nhãn nhất quán (calib giống nhau giữa frame (max diff 0.0e+00), hit rate box 3D->2D >= 1.00, IoU box chiếu vs nhãn >= 0.85 (frame cắt mép ảnh có IoU thấp hơn)).
+
+![synthetic](../results/figures/synthetic_faults_dashboard.png)
+![synthetic-bev](../results/figures/synthetic_fault_sector_bev.png)
 
 ## 3. Failure case
 
@@ -112,11 +194,13 @@ Ba failure case được chọn tự động theo số đo (`src/exp_failure.py`
 ![failure](../results/figures/fail_01_yaw_1deg_pedestrian_000011.png)
 
 Frame KITTI `000011`, Pedestrian cách 34.1 m: hit rate **100.0% → 7.5%** khi LiDAR lệch yaw 1° (yaw 1 deg, 40 diem LiDAR cua object). Cơ chế: lệch góc θ làm điểm ở khoảng cách d dịch ngang d·tanθ = 0.60 m, so với bề rộng người đi bộ khoảng 0,6 m (`results/analytic_shift.csv`). Dịch trên ảnh là f·tanθ pixel (không đổi theo d) nhưng 2D box của vật xa chỉ rộng vài chục pixel nên dịch này đủ đẩy điểm ra ngoài box. **Lớp debug: Geometry** (extrinsic Tr_velo_to_cam). Cách phát hiện khi chạy thật: theo dõi hit rate/precision trên các object đã có box 2D từ camera detector và cảnh báo khi tụt kéo dài; vật xa và mảnh (người, cột) là "chim hoàng yến" báo lệch sớm nhất.
+
 ### 3.2 Time: bỏ bù ego-motion trên nuScenes (`fail_02_time_sync_noego_scene-0103_001.png`)
 
 ![failure](../results/figures/fail_02_time_sync_noego_scene-0103_001.png)
 
 Calibration giữ nguyên, chỉ thay `use_ego_motion=False` (coi LiDAR và camera chụp cùng lúc). Frame `scene-0103_001`: dt LiDAR-camera -35.6 ms, shift median 9.3 px, p95 36.1 px; hit rate của Pedestrian @ 12.1 m **100.0% → 85.7%**. Trên toàn bộ 80 frame nuScenes: độ lệch thời gian LiDAR-camera trung vị -35.5 ms (min -39.5, max -34.2), pixel lệch trung vị 9.2 px (p95 cao nhất 58.8 px), hit rate tụt trung bình 1.0 điểm % (tối đa 14.3). Nguyên nhân: LiDAR quay 360° và camera chụp ở hai thời điểm khác nhau, xe (và vật) đã dịch chuyển trong khoảng đó; nếu không đi qua global frame bằng ego pose thì overlay lệch dù extrinsic hoàn toàn đúng. **Lớp debug: Time.** Cách phát hiện: ghi log |t_cam − t_lidar| từng frame và tốc độ xe, cảnh báo khi dt·v vượt ngưỡng pixel cho phép; KITTI không có timestamp trong bộ đề nên không kiểm được lớp này.
+
 ### 3.3 Metric: alignment score không thấy drift (`fail_03_alignment_blind_nuscenes_scene-0103_006_roll3deg.png`)
 
 ![failure](../results/figures/fail_03_alignment_blind_nuscenes_scene-0103_006_roll3deg.png)
@@ -125,7 +209,7 @@ nuscenes `scene-0103_006`: hit rate thực tế **100.0% → 0.0%** nhưng align
 
 ## 4. Khuyến nghị nếu triển khai thật
 
-**Use-case: ADAS / xe tự hành có LiDAR + camera.** Chạy kiểm tra calibration như một health-check nền, không nằm trong vòng điều khiển: bước đầy đủ (chiếu + hit rate + alignment) mất kitti p50 37 ms / p95 45 ms; nuscenes p50 16 ms / p95 19 ms trên CPU, nên chạy 1 Hz hoặc trên một frame mỗi giây là đủ. Đánh đổi: hit rate cần box 2D từ detector camera (đắt, nhưng đã có sẵn trong pipeline); alignment score rẻ và không cần nhãn nhưng yếu trên LiDAR thưa/ảnh đêm. Vì vậy dùng hit rate theo object xa/mảnh làm chỉ số chính, alignment score làm chỉ số phụ, và quyết định theo cửa sổ vài chục frame thay vì 1 frame để giữ false-alarm thấp. Với drift ≥ 1° trở lên nên chuyển hệ thống sang chế độ giảm cấp (giảm tin cậy fusion, ưu tiên cảm biến còn lại) thay vì tin fusion LiDAR-camera.
+**Use-case: ADAS / xe tự hành có LiDAR + camera.** Chạy kiểm tra calibration như một health-check nền, không nằm trong vòng điều khiển: bước đầy đủ (chiếu + hit rate + alignment) mất kitti p50 28 ms / p95 29 ms; nuscenes p50 11 ms / p95 12 ms trên CPU, nên chạy 1 Hz hoặc trên một frame mỗi giây là đủ. Đánh đổi: hit rate cần box 2D từ detector camera (đắt, nhưng đã có sẵn trong pipeline); alignment score rẻ và không cần nhãn nhưng yếu trên LiDAR thưa/ảnh đêm. Vì vậy dùng hit rate theo object xa/mảnh làm chỉ số chính, alignment score làm chỉ số phụ, và quyết định theo cửa sổ vài chục frame thay vì 1 frame để giữ false-alarm thấp. Với drift ≥ 1° trở lên nên chuyển hệ thống sang chế độ giảm cấp (giảm tin cậy fusion, ưu tiên cảm biến còn lại) thay vì tin fusion LiDAR-camera.
 
 **Chỉ số cần ghi log khi chạy thật:** hit rate và precision theo dải khoảng cách (0–15/15–30/30–50/>50 m); % điểm LiDAR trong ảnh; alignment contrast và `n_edge` (để biết khi nào chỉ số không đáng tin); |t_cam − t_lidar| và tốc độ ego từng frame; số object hợp lệ; nhiệt độ/va chạm (IMU) làm cờ kích hoạt kiểm tra lại. **Bước tiếp theo:** thêm dò cục bộ quanh calibration hiện tại (tìm yaw/pitch làm score tăng) để vừa phát hiện vừa ước lượng chiều lệch; dùng ring index của LiDAR thay vì cửa sổ ảnh để tìm biên độ sâu trên LiDAR thưa; và kiểm lại trên chuỗi liên tục có timestamp thật.
 
@@ -137,13 +221,16 @@ Từ repo sạch, chỉ cần CPU (đã chạy trên Kaggle). Kết quả xác �
 pip install -r requirements.txt
 python tools/verify_data.py --data-root data/kitti_mini
 python tools/verify_data.py --data-root data/nuscenes_mini_subset
-python -m src.run_all --class-name "AI20K-2A202602559"        # chạy tất cả: demo, sweep, detect, failure, latency, check tái lập, sinh REPORT.md
+python -m src.run_all --class-name "AI20K-2A202602559"        # chạy tất cả: demo, sweep, detect, failure, latency, B1, B2, B6, check tái lập, sinh REPORT.md
 # hoặc từng bước:
 python -m src.exp_demo
 python -m src.exp_sweep
 python -m src.exp_detect
 python -m src.exp_failure
 python -m src.exp_latency
+python -m src.exp_compare      # B1
+python -m src.exp_stress       # B2
+python -m src.exp_synthetic    # B6
 python -m src.make_report --class-name "AI20K-2A202602559"
 python tools/check_submission.py
 ```
@@ -154,4 +241,4 @@ Công cụ dùng lại được (B4): mỗi script trong `src/` có `--help`; `p
 
 | Công cụ | Dùng cho việc gì | Bạn đã kiểm chứng thế nào |
 |---|---|---|
-| Claude Code (Claude Sonnet 5.5) | Viết 2 hàm `TODO(CP2)` trong `starter/projection.py`; viết toàn bộ code trong `src/` (đo hit rate/precision/FOV, alignment score, sweep, phát hiện drift, failure case, latency) và `src/make_report.py` sinh báo cáo từ CSV | Kiểm tra tay CP2 tự động (`results/cp2_sanity.csv`: điểm (10,0,0) → z≈9,73, pixel≈(614,175), NaN/Inf, điểm sau xe); xem trực tiếp ảnh overlay `results/figures/demo_*.png` khớp xe/người/cột và không có điểm trên bầu trời; chạy lại sweep hai lần so sánh checksum (`results/determinism_check.txt`); mọi con số trong báo cáo được sinh từ CSV chứ không gõ tay |
+| Claude Code (Claude Sonnet 5.5) | Viết 2 hàm `TODO(CP2)` trong `starter/projection.py`; viết toàn bộ code trong `src/` (đo hit rate/precision/FOV, alignment score, sweep, phát hiện drift, failure case, latency) `src/exp_compare.py` (B1), `src/exp_stress.py` (B2), `src/exp_synthetic.py` (B6) và `src/make_report.py` sinh báo cáo từ CSV | Kiểm tra tay CP2 tự động (`results/cp2_sanity.csv`: điểm (10,0,0) → z≈9,73, pixel≈(614,175), NaN/Inf, điểm sau xe); xem trực tiếp ảnh overlay `results/figures/demo_*.png` khớp xe/người/cột và không có điểm trên bầu trời; chạy lại sweep hai lần so sánh checksum (`results/determinism_check.txt`); mọi con số trong báo cáo được sinh từ CSV chứ không gõ tay |

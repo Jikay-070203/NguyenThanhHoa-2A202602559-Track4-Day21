@@ -1,0 +1,4 @@
+lỗi,frame bị lỗi,cách phát hiện
+Điểm NaN trong point cloud (tọa độ bị hỏng),"000000, 000001, 000002, 000003, 000004","Đếm hàng không hữu hạn (np.isfinite) từng frame: 22-23 điểm/frame (~0.10%), hỏng ở cột x/y/z; nếu không lọc, projection và thống kê sẽ nhiễm NaN"
+"Mất một cung quét LiDAR (sector dropout, mất điểm theo azimuth)",000003,"Histogram azimuth 5 độ so với median các frame khác, bin mật độ < 50%: 000003: az -40..-5 deg (mật độ chỉ còn 22-34% so với các frame khác). Bằng chứng phụ (000003: n_points = 93% median). Cung này nằm trong FOV camera"
+Khoảng hở thời gian giữa 2 frame (timestamp nhảy cóc),000003,"Đọc timestamps.txt, tính dt giữa frame liền kề: 000003: dt = 0.20 s (danh định 0.10 s), ngưỡng 1.5x dt trung vị. Đối chiếu: nhãn GT của Pedestrian#0 (chuyển động đều 20.0 m/s ở các khoảng không hở) chỉ dịch 2.0 m ở khoảng 000002->000003, tức chỉ ~0.10 s trôi qua trong khi timestamp cách nhau 0.20 s: timestamp nhảy cóc (hoặc nhãn/frame không khớp thời gian)"

@@ -1,0 +1,6 @@
+frame_id,n_points,n_invalid,invalid_ratio,invalid_cols,n_finite,sector_flag,sector_detail,sector_in_camera_fov,count_vs_median,count_drop_flag,timestamp_s,dt_prev_s,time_gap_flag,label_motion_inconsistent,calib_max_diff,hit_rate_box3d_to_box2d,min_iou_proj3d_vs_label,calib_label_flag,invalid_flag
+000000,23953,23,0.00096021,xyz,23930,False,,False,1.0077,False,0,,False,False,0,0.99756,0.85181,False,True
+000001,23781,23,0.00096716,xyz,23758,False,,False,1.0003,False,0.1,0.1,False,False,0,1,0.97578,False,True
+000002,23790,23,0.00096679,xyz,23767,False,,False,1.0008,False,0.2,0.1,False,False,0,1,0.97484,False,True
+000003,22063,22,0.00099714,xyz,22041,True,az -40..-5 deg (mật độ chỉ còn 22-34% so với các frame khác),True,0.92755,True,0.4,0.2,True,True,0,1,0.97492,False,True
+000004,23760,23,0.00096801,xyz,23737,False,,False,0.99893,False,0.5,0.1,False,False,0,1,0.97549,False,True
